@@ -8,7 +8,15 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "hindi_asian.db"
+import os
+
+# Detect serverless environment (e.g. Vercel, AWS Lambda)
+IS_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+if IS_SERVERLESS:
+    DB_PATH = Path("/tmp") / "hindi_asian.db"
+else:
+    DB_PATH = Path(__file__).resolve().parent.parent / "data" / "hindi_asian.db"
+
 
 try:
     from config import TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, IS_TURSO_ENABLED
@@ -23,17 +31,39 @@ except ImportError:
 class SqliteDatabase:
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self.db_path = Path("/tmp") / "hindi_asian.db"
+            try:
+                self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+
         self.turso = TursoClient(TURSO_DATABASE_URL, TURSO_AUTH_TOKEN) if (IS_TURSO_ENABLED and TursoClient) else None
-        self.init_db()
+
+        # In serverless environments, local sqlite is secondary; do not crash if cannot initialize
+        try:
+            self.init_db()
+        except Exception:
+            pass
 
     def get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path), timeout=20.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA busy_timeout = 5000;")
-        return conn
+        try:
+            conn = sqlite3.connect(str(self.db_path), timeout=20.0)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON;")
+            try:
+                conn.execute("PRAGMA journal_mode = WAL;")
+            except Exception:
+                pass
+            conn.execute("PRAGMA busy_timeout = 5000;")
+            return conn
+        except Exception:
+            conn = sqlite3.connect(":memory:")
+            conn.row_factory = sqlite3.Row
+            return conn
+
 
     def init_db(self):
         """Initialize Turso-compatible tables and indexes."""

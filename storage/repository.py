@@ -14,7 +14,14 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "dramas"
 class DramaRepository:
     def __init__(self, data_dir: Path = DATA_DIR):
         self.data_dir = data_dir
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self.data_dir = Path("/tmp") / "dramas"
+            try:
+                self.data_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
 
     def _file_path(self, tmdb_id: int) -> Path:
         return self.data_dir / f"{tmdb_id}.json"
