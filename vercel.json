@@ -5,7 +5,7 @@
       "destination": "/public/widget.js"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": "/api/index.py"
     }
   ]

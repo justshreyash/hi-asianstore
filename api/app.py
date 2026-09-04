@@ -39,7 +39,39 @@ app.add_middleware(
 )
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, JSONResponse
+
+
+@app.middleware("http")
+async def fix_vercel_path_middleware(request, call_next):
+    # Vercel serverless rewrites often pass internal function paths (/api/index.py).
+    # The actual user-requested browser path is preserved in x-forwarded-uri.
+    forwarded_uri = request.headers.get("x-forwarded-uri")
+    if forwarded_uri:
+        orig_path = forwarded_uri.split("?")[0]
+        request.scope["path"] = orig_path
+    elif request.scope.get("path", "").startswith("/api/index.py"):
+        suffix = request.scope["path"][len("/api/index.py"):]
+        request.scope["path"] = suffix or "/"
+    elif request.scope.get("path", "").startswith("/api/index"):
+        suffix = request.scope["path"][len("/api/index"):]
+        request.scope["path"] = suffix or "/"
+
+    response = await call_next(request)
+    return response
+
+
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": "Not Found",
+            "requested_path": request.url.path,
+            "scope_path": request.scope.get("path"),
+            "forwarded_uri": request.headers.get("x-forwarded-uri")
+        }
+    )
 
 db = SqliteDatabase()
 json_repo = DramaRepository()
