@@ -5,7 +5,7 @@ Endpoints:
   GET /v1/hi-asian
 """
 
-from fastapi import FastAPI, HTTPException, status, BackgroundTasks
+from fastapi import FastAPI, HTTPException, status, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from typing import Dict, Any, List, Optional
@@ -106,21 +106,13 @@ class IngestRequest(BaseModel):
 
 
 @app.get("/", tags=["Health"])
-def health():
+def health(request: Request):
     return {
         "status": "online",
         "service": "Hindi-Asian Drama Metadata API",
-        "database": "SQLite (data/hindi_asian.db)",
-        "web_ui": "/web/ingestion",
-        "endpoints": [
-            "/web/ingestion",
-            "/v1/hi-asian/{tmdb_id}",
-            "/v1/hi-asian/{tmdb_id}/resolve-m3u8",
-            "/v1/hi-asian",
-            "/v1/hi-asian/ingest",
-            "/v1/crawler/refresh",
-            "/v1/crawler/queue"
-        ]
+        "path": request.url.path,
+        "scope_path": request.scope.get("path"),
+        "headers": dict(request.headers)
     }
 
 
