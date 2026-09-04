@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lytekd Widget Integration Test</title>
+  <style>
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .wrapper {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #94a3b8;
+      margin-bottom: 32px;
+    }
+    .demo-section {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+    .demo-section h3 {
+      margin-top: 0;
+      color: #38bdf8;
+    }
+  </style>
+  <script>
+    // Point widget to local API for testing
+    window.HINDI_DUB_API_BASE = 'http://127.0.0.1:8000';
+  </script>
+</head>
+<body>
+  <div class="wrapper">
+    <h1>Lytekd - Hindi Dubbed Player Widget Test</h1>
+    <p>Simulating how the embed snippet renders on your target website.</p>
+
+    <!-- DEMO 1: Ready to Stream (Squid Game - TMDB 93405) -->
+    <div class="demo-section">
+      <h3>1. Active Stream (Ready to Play): Squid Game (TMDB 93405)</h3>
+      <div id="hindi-dub-widget" data-tmdb="93405" data-title="Squid Game"></div>
+    </div>
+
+    <!-- DEMO 2: In-Queue / Pending Ingest -->
+    <div class="demo-section">
+      <h3>2. On-Demand Request (In-Queue): The Midnight Romance in Hagwon (TMDB 237508)</h3>
+      <div class="hindi-dub-player" data-tmdb="237508" data-title="The Midnight Romance in Hagwon"></div>
+    </div>
+
+    <!-- DEMO 3: Unavailable -->
+    <div class="demo-section">
+      <h3>3. Unavailable Drama: Non-Existent Demo Drama</h3>
+      <div class="hindi-dub-player" data-tmdb="999999" data-title="Unknown Non Hindi Title"></div>
+    </div>
+  </div>
+
+  <!-- Load Widget Script -->
+  <script src="/public/widget.js" async></script>
+</body>
+</html>

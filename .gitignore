@@ -1,0 +1,58 @@
+# ==========================================
+# Hindi-Asian Auto-Store - Git Ignore Rules
+# ==========================================
+
+# 1. Environment & Sensitive Secrets (NEVER COMMIT)
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# 2. Local Database & Runtime Cache Files
+data/hindi_asian.db
+data/hindi_asian.db-wal
+data/hindi_asian.db-shm
+data/*.db*
+data/dramas/
+*.db
+*.sqlite
+*.sqlite3
+!data/.gitkeep
+
+# 3. Python Cache & Compiled Files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# 4. Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# 5. Vercel & Deployment Artifacts
+.vercel/
+node_modules/
+npm-debug.log*
+
+# 6. IDE & Editor Artifacts
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 7. OS & Temporary Files
+scratch/
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+Thumbs.db
+ehthumbs.db

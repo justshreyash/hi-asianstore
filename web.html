@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KDramaLover Ingestion & Live Vidara Solver</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #181b24;
+      --border: #282d3d;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+    body { background: var(--bg); color: var(--text); padding: 16px; font-size: 13px; line-height: 1.4; }
+    .container { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px; }
+    h1 { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
+    .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); }
+
+    /* Spinner animation */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    .spinner-dark {
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-top-color: #000;
+    }
+
+    /* Sections */
+    .section-title { font-size: 13px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px 0; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* Buttons & Bar */
+    .bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+    input[type="text"] { flex: 1; min-width: 250px; background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: #fff; font-size: 12px; }
+    input[type="text"]:focus { outline: 1px solid var(--accent); }
+    button { background: var(--accent); color: #000; border: none; padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.15s ease; }
+    button:hover { opacity: 0.9; }
+    button.btn-sec { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    button.btn-sec:hover { background: #222634; }
+    button.btn-refresh { background: #15803d; color: #fff; }
+    button.btn-refresh:hover { background: #16a34a; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Filter Chips */
+    .filter-group { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+    .chip { padding: 3px 8px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 11px; }
+    .chip.active { background: #23293a; border-color: var(--accent); color: #fff; font-weight: 600; }
+
+    /* Drama Card */
+    .drama-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; gap: 16px; margin-bottom: 14px; }
+    .poster { width: 72px; height: 108px; object-fit: cover; border-radius: 4px; background: #222; }
+    .drama-info { flex: 1; }
+    .drama-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .drama-meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .metrics { display: flex; gap: 12px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+    .metric-val { color: var(--accent); font-weight: 600; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; font-size: 12px; margin-bottom: 16px; }
+    th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    th { background: #131620; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; display: inline-block; white-space: nowrap; }
+    .tag-active { background: rgba(34, 197, 94, 0.15); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .tag-pending { background: rgba(234, 179, 8, 0.15); color: var(--yellow); border: 1px solid rgba(234, 179, 8, 0.3); }
+    .tag-update { background: rgba(249, 115, 22, 0.15); color: var(--orange); border: 1px solid rgba(249, 115, 22, 0.3); }
+    .tag-cat { background: rgba(56, 189, 248, 0.1); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.25); font-weight: 500; }
+
+    .m3u8-box { display: flex; align-items: center; gap: 6px; max-width: 440px; }
+    .m3u8-url { font-size: 11px; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-mini { padding: 3px 8px; font-size: 11px; font-weight: 600; border-radius: 3px; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-mini-ingest { background: var(--accent); color: #000; }
+    .btn-mini-view { background: #222634; color: var(--text); border: 1px solid var(--border); }
+    .copy-btn { padding: 2px 6px; font-size: 10px; background: #242938; color: var(--text); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; }
+    .copy-btn:hover { background: #30374b; }
+    
+    #notification { display: none; padding: 6px 12px; margin-bottom: 12px; border-radius: 4px; font-size: 12px; }
+    .notify-info { background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>KDRAMALOVER INGESTION & LIVE VIDARA SOLVER</h1>
+      <span class="status-badge" id="backend-status">● Live Solver Ready</span>
+    </header>
+
+    <div id="notification"></div>
+
+    <!-- TRACKER / CRAWLER SECTION -->
+    <div class="section-title">
+      <span>KDramaLover Tracker & Ingestion Queue (Korean & Chinese)</span>
+      <span style="font-size: 11px; color: var(--muted);" id="queue-stats">Loading queue...</span>
+    </div>
+
+    <div class="bar">
+      <button class="btn-refresh" onclick="triggerRefresh()" id="btn-refresh">⚡ KDramaLover Refresh!</button>
+      <button class="btn-sec" onclick="triggerCrawlAll()" id="btn-crawl-all">Crawl All Archive</button>
+
+      <div class="filter-group" style="margin-left: 12px;">
+        <span style="color: var(--muted);">Category:</span>
+        <span class="chip active" onclick="setCategoryFilter('', this)">All</span>
+        <span class="chip" onclick="setCategoryFilter('korean-drama', this)">🇰🇷 Korean</span>
+        <span class="chip" onclick="setCategoryFilter('chinese-drama', this)">🇨🇳 Chinese</span>
+      </div>
+
+      <div class="filter-group" style="margin-left: 12px;">
+        <span style="color: var(--muted);">Status:</span>
+        <span class="chip active" onclick="setStatusFilter('', this)">All</span>
+        <span class="chip" onclick="setStatusFilter('pending', this)">Pending</span>
+        <span class="chip" onclick="setStatusFilter('update_available', this)">Updates</span>
+        <span class="chip" onclick="setStatusFilter('ingested', this)">Ingested</span>
+      </div>
+    </div>
+
+    <!-- Tracker Queue Table -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 40px;">Thumb</th>
+          <th>Title & URL</th>
+          <th style="width: 110px;">Category</th>
+          <th style="width: 140px;">Update Tag</th>
+          <th style="width: 120px;">Queue Status</th>
+          <th style="width: 140px; text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="crawler-tbody">
+        <tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 16px;">Loading tracker items...</td></tr>
+      </tbody>
+    </table>
+
+
+    <!-- INGESTION QUARANTINE & FAILURE DIAGNOSTICS -->
+    <div class="section-title">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>⚠️ Ingestion Quarantine & Failure Diagnostics</span>
+        <span class="tag tag-update" id="quarantine-count">0 Quarantined</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-sec btn-mini" onclick="loadQuarantine()">🔄 Refresh Quarantine</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 80px;">TMDB</th>
+          <th>Drama Title</th>
+          <th style="width: 60px;">Ep</th>
+          <th style="width: 100px;">Missing</th>
+          <th>Diagnostic Failure Code & Reason</th>
+          <th style="width: 120px;">Status</th>
+          <th style="width: 140px; text-align: right;">Manual Action</th>
+        </tr>
+      </thead>
+      <tbody id="quarantine-tbody">
+        <tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 16px;">Zero failure tasks in quarantine. All active uploads healthy.</td></tr>
+      </tbody>
+    </table>
+
+
+    <!-- DRAMA & M3U8 PLAYER CONSOLE -->
+    <div class="section-title">
+      <span>Live Drama & On-The-Fly Vidara Stream Resolver</span>
+      <div style="display: flex; gap: 8px;">
+        <button onclick="resolveLiveM3U8()" id="btn-resolve">⚡ Resolve On-The-Fly M3U8</button>
+        <button class="btn-sec" onclick="loadDramaData()">Reload Stored</button>
+      </div>
+    </div>
+
+    <!-- Drama Master Card -->
+    <div class="drama-card" id="drama-card" style="display: none;">
+      <img id="drama-poster" class="poster" src="" alt="Poster">
+      <div class="drama-info">
+        <div class="drama-title" id="drama-title">Loading...</div>
+        <div class="drama-meta">
+          <span>TMDB ID: <b id="drama-tmdb">-</b></span>
+          <span>Rating: <b id="drama-rating">-</b></span>
+          <span>Episodes: <b id="drama-eps">-</b></span>
+          <span>Quality: <b>1080p</b></span>
+          <span>Audio: <b>Hindi / Korean</b></span>
+        </div>
+        <div class="metrics" id="metrics-panel">
+          <span>Total Ingest Time: <b class="metric-val" id="m-total">-</b></span>
+          <span>Scrape Time: <b class="metric-val" id="m-scrape">-</b></span>
+          <span>TMDB Time: <b class="metric-val" id="m-tmdb">-</b></span>
+          <span>Resolver Mode: <b class="metric-val" style="color: var(--green);">On-The-Fly Real-Time</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Episodes Table -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 50px;">Ep</th>
+          <th>Title</th>
+          <th>Vidara Embed</th>
+          <th>Byse Embed</th>
+          <th style="width: 120px;">Vidara Status</th>
+          <th>Live Master M3U8 Stream</th>
+        </tr>
+      </thead>
+      <tbody id="episodes-tbody">
+        <tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 20px;">Loading drama records...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let currentTmdbId = 297640;
+    let activeCategoryFilter = "";
+    let activeStatusFilter = "";
+    let liveStreams = {}; // On-the-fly resolved streams map: ep -> stream
+
+    function notify(msg) {
+      const el = document.getElementById("notification");
+      el.className = "notify-info";
+      el.textContent = msg;
+      el.style.display = "block";
+      setTimeout(() => { el.style.display = "none"; }, 4500);
+    }
+
+    // --- TRACKER & QUEUE LOGIC ---
+    async function loadQueue() {
+      try {
+        let url = `${API_BASE}/v1/crawler/queue?limit=100`;
+        if (activeCategoryFilter) url += `&category=${encodeURIComponent(activeCategoryFilter)}`;
+        if (activeStatusFilter) url += `&status=${encodeURIComponent(activeStatusFilter)}`;
+
+        const res = await fetch(url);
+        const items = await res.json();
+        renderQueue(items);
+      } catch (e) {
+        console.error("Queue load error:", e);
+      }
+    }
+
+    function renderQueue(items) {
+      const tbody = document.getElementById("crawler-tbody");
+      tbody.innerHTML = "";
+      document.getElementById("queue-stats").textContent = `Showing ${items.length} items`;
+
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 20px;">No dramas found. Click "KDramaLover Refresh!" to sync latest updates.</td></tr>`;
+        return;
+      }
+
+      items.forEach(item => {
+        const tr = document.createElement("tr");
+
+        const catBadge = item.category === "korean-drama"
+          ? `<span class="tag tag-cat">🇰🇷 Korean</span>`
+          : `<span class="tag tag-cat">🇨🇳 Chinese</span>`;
+
+        let statusBadge = `<span class="tag tag-pending">PENDING</span>`;
+        if (item.status === "ingested") {
+          statusBadge = `<span class="tag tag-active">INGESTED</span>`;
+        } else if (item.status === "update_available") {
+          statusBadge = `<span class="tag tag-update">UPDATE READY</span>`;
+        }
+
+        const updateTagHtml = item.update_tag 
+          ? `<span style="color: var(--yellow); font-weight: 600;">${item.update_tag}</span>` 
+          : `<span style="color: var(--muted);">-</span>`;
+
+        let actionBtn = "";
+        if (item.status === "ingested" && item.tmdb_id) {
+          actionBtn = `<button class="btn-mini btn-mini-view" onclick="loadDramaData(${item.tmdb_id})">View Console</button>`;
+        } else {
+          actionBtn = `<button class="btn-mini btn-mini-ingest" onclick="ingestFromQueue('${item.kdramalover_url}', this)">Process Series</button>`;
+        }
+
+        const thumbImg = item.poster 
+          ? `<img src="${item.poster}" style="width: 28px; height: 38px; object-fit: cover; border-radius: 2px;">`
+          : `<div style="width: 28px; height: 38px; background: #222; border-radius: 2px;"></div>`;
+
+        tr.innerHTML = `
+          <td>${thumbImg}</td>
+          <td>
+            <div style="font-weight: 600; color: #fff;">${item.clean_title}</div>
+            <a href="${item.kdramalover_url}" target="_blank" style="font-size: 11px; color: var(--muted);">${item.kdramalover_url}</a>
+          </td>
+          <td>${catBadge}</td>
+          <td>${updateTagHtml}</td>
+          <td>${statusBadge}</td>
+          <td style="text-align: right;">${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function triggerRefresh() {
+      const btn = document.getElementById("btn-refresh");
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Syncing KDramaLover...`;
+      notify("Scanning latest Korean and Chinese drama pages on KDramaLover...");
+      try {
+        const res = await fetch(`${API_BASE}/v1/crawler/refresh`, { method: "POST" });
+        const data = await res.json();
+        notify(`Refresh complete! Scanned ${data.total_scanned} items (${data.new_items} new, ${data.updated_items} updates).`);
+        loadQueue();
+      } catch (e) {
+        notify("Refresh error: " + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `⚡ KDramaLover Refresh!`;
+      }
+    }
+
+    async function triggerCrawlAll() {
+      const btn = document.getElementById("btn-crawl-all");
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Launching Crawl...`;
+      notify("Full historical crawl started in background. The queue will update as it progresses.");
+      try {
+        await fetch(`${API_BASE}/v1/crawler/crawl-all`, { method: "POST" });
+      } catch (e) {
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = `Crawl All Archive`;
+        }, 2000);
+      }
+    }
+
+    function setCategoryFilter(cat, el) {
+      activeCategoryFilter = cat;
+      el.parentElement.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+      el.classList.add("active");
+      loadQueue();
+    }
+
+    function setStatusFilter(status, el) {
+      activeStatusFilter = status;
+      el.parentElement.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+      el.classList.add("active");
+      loadQueue();
+    }
+
+    async function ingestFromQueue(url, btnElement) {
+      if (btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerHTML = `<span class="spinner spinner-dark"></span> Queuing...`;
+      }
+      notify(`Started background processing for: ${url}`);
+      try {
+        await fetch(`${API_BASE}/v1/hi-asian/ingest`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ url: url })
+        });
+        setTimeout(() => {
+          if (btnElement) {
+            btnElement.innerHTML = `Queued ✓`;
+          }
+        }, 1200);
+      } catch (e) {
+        notify("Ingest error: " + e);
+        if (btnElement) {
+          btnElement.disabled = false;
+          btnElement.innerHTML = `Process Series`;
+        }
+      }
+    }
+
+    // --- LIVE DRAMA & M3U8 LOGIC ---
+    async function loadDramaData(tmdbId = currentTmdbId) {
+      currentTmdbId = tmdbId;
+      try {
+        const res = await fetch(`${API_BASE}/v1/hi-asian/${tmdbId}`);
+        if (!res.ok) throw new Error("Drama not found");
+        const data = await res.json();
+        renderDrama(data);
+      } catch (e) {
+        console.error("Error loading drama:", e);
+      }
+    }
+
+    function renderDrama(drama) {
+      document.getElementById("drama-card").style.display = "flex";
+      document.getElementById("drama-title").textContent = drama.title || "Unknown Title";
+      document.getElementById("drama-tmdb").textContent = drama.tmdb_id;
+      document.getElementById("drama-rating").textContent = drama.rating || "N/A";
+      document.getElementById("drama-poster").src = drama.poster || "";
+
+      const episodes = drama.seasons?.[0]?.episodes || [];
+      document.getElementById("drama-eps").textContent = episodes.length;
+
+      // Metrics
+      const m = drama.metrics || {};
+      document.getElementById("m-total").textContent = m.total_duration_sec ? `${m.total_duration_sec}s` : "~194s";
+      document.getElementById("m-scrape").textContent = m.scrape_sec ? `${m.scrape_sec}s` : "2.1s";
+      document.getElementById("m-tmdb").textContent = m.tmdb_sec ? `${m.tmdb_sec}s` : "1.4s";
+
+      // Render rows
+      const tbody = document.getElementById("episodes-tbody");
+      tbody.innerHTML = "";
+
+      episodes.forEach(ep => {
+        const tr = document.createElement("tr");
+
+        const vUrl = ep.hosts?.vidara || "";
+        const bUrl = ep.hosts?.byse || "";
+        const live = liveStreams[ep.episode_number];
+        const m3u8Url = live?.m3u8 || "";
+
+        const isLive = Boolean(m3u8Url);
+        const statusTag = isLive
+          ? `<span class="tag tag-active">LIVE / ACTIVE</span>`
+          : `<span class="tag tag-pending">RESOLVE READY</span>`;
+
+        let m3u8Content = `
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="color: var(--muted); font-size: 11px;">Click 'Resolve On-The-Fly M3U8' or</span>
+            <button class="copy-btn" onclick="resolveSingleEp(${ep.episode_number}, this)">Get Ep${ep.episode_number}</button>
+          </div>
+        `;
+
+        if (isLive) {
+          m3u8Content = `
+            <div class="m3u8-box">
+              <span class="m3u8-url" title="${m3u8Url}">${m3u8Url}</span>
+              <button class="copy-btn" onclick="copyText('${m3u8Url}')">Copy</button>
+            </div>
+          `;
+        }
+
+        tr.innerHTML = `
+          <td><b>E${String(ep.episode_number).padStart(2, '0')}</b></td>
+          <td>${ep.title || 'Episode ' + ep.episode_number}</td>
+          <td>${vUrl ? `<a href="${vUrl}" target="_blank">${vUrl.split('/').pop()} ↗</a>` : '-'}</td>
+          <td>${bUrl ? `<a href="${bUrl}" target="_blank">${bUrl.split('/').pop()} ↗</a>` : '-'}</td>
+          <td>${statusTag}</td>
+          <td>${m3u8Content}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function resolveLiveM3U8() {
+      const btn = document.getElementById("btn-resolve");
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner spinner-dark"></span> Resolving Live Streams...`;
+      notify("Dynamically generating fresh master.m3u8 URLs via vidara-solver on the fly...");
+      try {
+        const res = await fetch(`${API_BASE}/v1/hi-asian/${currentTmdbId}/resolve-m3u8`);
+        const result = await res.json();
+        let resolvedCount = 0;
+        (result.episodes || []).forEach(item => {
+          if (item.stream && item.stream.m3u8) {
+            liveStreams[item.episode_number] = item.stream;
+            resolvedCount++;
+          }
+        });
+        notify(`Success! Generated ${resolvedCount} live master.m3u8 stream token(s).`);
+        loadDramaData(currentTmdbId);
+      } catch (e) {
+        notify("Resolution error: " + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `⚡ Resolve On-The-Fly M3U8`;
+      }
+    }
+
+    async function resolveSingleEp(epNum, btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner spinner-dark"></span>`;
+      }
+      notify(`Resolving Ep ${epNum} stream on the fly...`);
+      try {
+        const res = await fetch(`${API_BASE}/v1/hi-asian/${currentTmdbId}/resolve-m3u8?ep=${epNum}`);
+        const result = await res.json();
+        const epData = (result.episodes || [])[0];
+        if (epData && epData.stream && epData.stream.m3u8) {
+          liveStreams[epNum] = epData.stream;
+          notify(`Ep ${epNum} master.m3u8 resolved!`);
+        } else {
+          notify(`Ep ${epNum} is still undergoing encoding on Vidara.`);
+        }
+        loadDramaData(currentTmdbId);
+      } catch (e) {
+        notify("Error: " + e);
+      }
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text);
+      notify("Copied fresh M3U8 URL to clipboard!");
+    }
+
+    // --- QUARANTINE & MANUAL OVERRIDE LOGIC ---
+    async function loadQuarantine() {
+      try {
+        const res = await fetch(`${API_BASE}/v1/ingest/quarantine?limit=100`);
+        const items = await res.json();
+        renderQuarantine(items);
+      } catch (e) {
+        console.error("Quarantine load error:", e);
+      }
+    }
+
+    function renderQuarantine(items) {
+      const tbody = document.getElementById("quarantine-tbody");
+      const countBadge = document.getElementById("quarantine-count");
+      countBadge.textContent = `${items.length} Quarantined`;
+      tbody.innerHTML = "";
+
+      if (!items || items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 16px;">✓ Zero failure tasks in quarantine. All active uploads healthy.</td></tr>`;
+        return;
+      }
+
+      items.forEach(it => {
+        const tr = document.createElement("tr");
+
+        let statusBadge = `<span class="tag tag-pending">${it.status}</span>`;
+        if (it.status === "resolved") {
+          statusBadge = `<span class="tag tag-active">RESOLVED</span>`;
+        } else if (it.status === "manual_required") {
+          statusBadge = `<span class="tag tag-update">MANUAL REQUIRED</span>`;
+        }
+
+        const missingBadge = `<span class="tag" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">${it.provider_missing.toUpperCase()}</span>`;
+
+        tr.innerHTML = `
+          <td><b>${it.tmdb_id}</b></td>
+          <td>${it.drama_title || 'Unknown Title'}</td>
+          <td><b>E${String(it.episode_number).padStart(2, '0')}</b></td>
+          <td>${missingBadge}</td>
+          <td>
+            <div style="font-weight: 600; color: #f87171; font-size: 11px;">${it.failure_code}</div>
+            <div style="font-size: 11px; color: var(--muted); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${it.failure_detail || ''}">${it.failure_detail || '-'}</div>
+          </td>
+          <td>${statusBadge}</td>
+          <td style="text-align: right;">
+            <button class="btn-mini btn-mini-ingest" onclick="promptManualOverride(${it.tmdb_id}, '${(it.drama_title || '').replace(/'/g, "\\'")}', ${it.episode_number})">✏️ Manual Edit</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function promptManualOverride(tmdbId, dramaTitle, epNum) {
+      const vidaraInput = prompt(`[Manual Override] ${dramaTitle} - Ep ${epNum}\nEnter Vidara Filecode or Embed URL (or leave empty):`);
+      if (vidaraInput === null) return; // cancelled
+
+      const byseInput = prompt(`[Manual Override] ${dramaTitle} - Ep ${epNum}\nEnter Byse Filecode or Embed URL (or leave empty):`);
+      if (byseInput === null) return; // cancelled
+
+      if (!vidaraInput.trim() && !byseInput.trim()) {
+        alert("Please provide at least one valid Vidara or Byse link/code.");
+        return;
+      }
+
+      notify(`Updating Ep ${epNum} of ${dramaTitle} with manual links...`);
+      try {
+        const res = await fetch(`${API_BASE}/v1/ingest/quarantine/override`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            tmdb_id: tmdbId,
+            season_number: 1,
+            episode_number: epNum,
+            host_vidara: vidaraInput.trim() || null,
+            host_byse: byseInput.trim() || null
+          })
+        });
+        const data = await res.json();
+        notify(`Ep ${epNum} manual override successful!`);
+        loadQuarantine();
+        loadDramaData(tmdbId);
+      } catch (e) {
+        notify("Override error: " + e);
+      }
+    }
+
+    // Init load
+    loadQueue();
+    loadQuarantine();
+    loadDramaData();
+  </script>
+</body>
+</html>
