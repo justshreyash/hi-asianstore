@@ -44,18 +44,21 @@ from fastapi.responses import HTMLResponse, Response, JSONResponse
 
 @app.middleware("http")
 async def fix_vercel_path_middleware(request, call_next):
-    # Vercel serverless rewrites often pass internal function paths (/api/index.py).
-    # The actual user-requested browser path is preserved in x-forwarded-uri.
-    forwarded_uri = request.headers.get("x-forwarded-uri")
-    if forwarded_uri:
-        orig_path = forwarded_uri.split("?")[0]
-        request.scope["path"] = orig_path
-    elif request.scope.get("path", "").startswith("/api/index.py"):
-        suffix = request.scope["path"][len("/api/index.py"):]
-        request.scope["path"] = suffix or "/"
-    elif request.scope.get("path", "").startswith("/api/index"):
-        suffix = request.scope["path"][len("/api/index"):]
-        request.scope["path"] = suffix or "/"
+    # Vercel rewrites pass the matched subpath via __path query param or path suffix
+    query_path = request.query_params.get("__path")
+    if query_path:
+        request.scope["path"] = "/" + query_path.lstrip("/")
+    else:
+        forwarded_uri = request.headers.get("x-forwarded-uri")
+        if forwarded_uri:
+            orig_path = forwarded_uri.split("?")[0]
+            request.scope["path"] = orig_path
+        elif request.scope.get("path", "").startswith("/api/index.py"):
+            suffix = request.scope["path"][len("/api/index.py"):]
+            request.scope["path"] = suffix or "/"
+        elif request.scope.get("path", "").startswith("/api/index"):
+            suffix = request.scope["path"][len("/api/index"):]
+            request.scope["path"] = suffix or "/"
 
     response = await call_next(request)
     return response
@@ -106,13 +109,19 @@ class IngestRequest(BaseModel):
 
 
 @app.get("/", tags=["Health"])
-def health(request: Request):
+def health():
     return {
         "status": "online",
         "service": "Hindi-Asian Drama Metadata API",
-        "path": request.url.path,
-        "scope_path": request.scope.get("path"),
-        "headers": dict(request.headers)
+        "database": "Turso Cloud (hi-asianstore)",
+        "endpoints": [
+            "/v1/hi-asian/{tmdb_id}",
+            "/v1/hi-asian/{tmdb_id}/stream",
+            "/v1/hi-asian/{tmdb_id}/embed",
+            "/v1/hi-asian/{tmdb_id}/resolve-m3u8",
+            "/v1/hi-asian",
+            "/v1/hi-asian/check"
+        ]
     }
 
 
